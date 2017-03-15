@@ -1,0 +1,11 @@
+<configuration>
+<property>
+  <name>javax.jdo.option.ConnectionURL</name>
+  <value>jdbc:derby:;databaseName=/usr/local/Cellar/hive/2.1.0/libexec/metastore/metastore_db;create=true</value>
+</property>
+ <property>
+  <name>hive.exec.scratchdir</name>
+  <value>/tmp/hive-${user.name}</value>
+  <description>Scratch space for Hive jobs</description>
+ </property>
+</configuration>
