@@ -20,10 +20,16 @@ object SCDExample {
     // Read some example file to a test RDD
     // val df = sqlContext.sql("select run_date, count(*) as cnt from phila_schools.school_employees group by run_date order by cnt desc")
 
-    val employee_stg = sqlContext.sql("select * from phila_schools.employees where run_date='11/26/2014'").alias("stg")
-    val employee_d = sqlContext.sql("select * from phila_schools.employee_d where most_recent='Y'").alias("dim")
+    val employee_stg = sqlContext.sql("select * from phila_schools.employees where run_date='11/26/2014'")
+    val employee_d_tmp = sqlContext.sql("select *, from_unixtime(unix_timestamp(run_date, 'MM/dd/yyyy')) as as_of_date from phila_schools.employee_d")
 
-    val columns = employee_d.columns.map(a => a+"_d")
+    val employee_d_most_recent = employee_d_tmp.filter(employee_d_tmp("most_recent")).equals("Y")
+    val employee_d_old_recs = employee_d_tmp.filter(employee_d_tmp("most_recent")).equals("N")
+
+    // process most recent dim records and new incoming records
+    val columns = employee_d_most_recent
+
+    //val columns = employee_d_most_recent.columns.map(a => a+"_d")
 
     val renamed_employee_d = employee_d.toDF(columns :_*)
 
