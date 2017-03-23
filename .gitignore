@@ -3,3 +3,8 @@ SCDExample.iml
 
 /.idea/**
 /.idea
+
+/target/**
+/target
+
+/src/main/resources/hive-site.xml

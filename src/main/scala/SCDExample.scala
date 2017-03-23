@@ -20,8 +20,13 @@ object SCDExample {
     // Read some example file to a test RDD
     // val df = sqlContext.sql("select run_date, count(*) as cnt from phila_schools.school_employees group by run_date order by cnt desc")
 
-    val employee_stg = sqlContext.sql("select * from phila_schools.employees where run_date='11/26/2014'")
-    val employee_d_tmp = sqlContext.sql("select *, from_unixtime(unix_timestamp(run_date, 'MM/dd/yyyy')) as as_of_date from phila_schools.employee_d")
+    val employee_stg = sqlContext.sql("select last_name, first_name, pay_rate_type, pay_rate, title_description," +
+                                      " home_organization, home_organization_description, organization_level," +
+                                      " type_of_representation, gender," +
+                                      " from_unixtime(unix_timestamp(run_date, 'MM/dd/yyyy')) as as_of_date" +
+                                      " from phila_schools.employees where run_date='11/26/2014'")
+
+    val employee_d_tmp = sqlContext.sql("select * from phila_schools.employee_d")
 
     val employee_d_most_recent = employee_d_tmp.filter(employee_d_tmp("most_recent") === "Y")
     val employee_d_old_recs = employee_d_tmp.filter(employee_d_tmp("most_recent") === "N")
@@ -31,9 +36,9 @@ object SCDExample {
 
     //val columns = employee_d_most_recent.columns.map(a => a+"_d")
 
-    val renamed_employee_d = employee_d.toDF(columns :_*)
+    val renamed_employee_d = employee_d_most_recent.toDF(columns :_*)
 
-    val dimSchema = employee_d.schema
+    val dimSchema = employee_d_most_recent.schema
 
     val joined = renamed_employee_d.join(employee_stg,
                                     renamed_employee_d("last_name_d")===employee_stg("last_name") &&
@@ -76,7 +81,7 @@ object SCDExample {
         joinedRow.getAs("type_of_representation"),
         joinedRow.getAs("gender"),
         1,
-        "2014-11-26 00:00:00",
+        joinedRow.getAs("as_of_date"),
         null,
         "Y"
       )
@@ -159,7 +164,7 @@ object SCDExample {
           joinedRow.getAs("gender_d"),
           joinedRow.getAs("version_d"),
           joinedRow.getAs("begin_date_d"),
-          "2014-11-26 00:00:00",
+          joinedRow.getAs("as_of_date"),
           "N")
 
         new_r = Row(joinedRow.getAs("key_d").asInstanceOf[Int] + 1,
@@ -174,7 +179,7 @@ object SCDExample {
           joinedRow.getAs("type_of_representation"),
           joinedRow.getAs("gender"),
           joinedRow.getAs("version_d").asInstanceOf[Int] + 1,
-          "2014-11-26 00:00:00",
+          joinedRow.getAs("as_of_date"),
           null,
           "Y"
         )
