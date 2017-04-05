@@ -34,6 +34,9 @@ object SCDExample {
 
     val employee_d_tmp = sqlContext.sql("select * from phila_schools.employee_d")
 
+    val max_key = employee_d_tmp.agg(Map("key" -> "max")).collect()(0).getInt(0)
+    println("max_key = " + max_key)
+
     val employee_d_most_recent = employee_d_tmp.filter(employee_d_tmp("most_recent") === "Y")
     val employee_d_old_recs = employee_d_tmp.filter(employee_d_tmp("most_recent") === "N")
 
@@ -58,6 +61,11 @@ object SCDExample {
 
     val new_dim = sqlContext.createDataFrame(joined2, dimSchema)
 
+    val dim_inserts = new_dim.filter(new_dim("key") === null).repartition(1)
+    val dim_non_inserts = new_dim.filter(!(new_dim("key") === null))
+
+
+
     new_dim.write.mode("overwrite").saveAsTable("phila_schools.temp_table")
 
     // val df2 = df.filter(!df("last_name").contains("LAST_NAME")).groupBy("run_date").count()
@@ -75,7 +83,7 @@ object SCDExample {
         joinedRow.getAs("first_name_d") == null &&
         joinedRow.getAs("home_organization_d") == null) {
       // new employee that didn't exist in the dim
-      r = Row(69,
+      r = Row(null,
         joinedRow.getAs("last_name"),
         joinedRow.getAs("first_name"),
         joinedRow.getAs("pay_rate_type"),
@@ -173,7 +181,8 @@ object SCDExample {
           joinedRow.getAs("as_of_date"),
           "N")
 
-        new_r = Row(joinedRow.getAs("key_d").asInstanceOf[Int] + 1,
+        new_r = Row(
+          null,
           joinedRow.getAs("last_name"),
           joinedRow.getAs("first_name"),
           joinedRow.getAs("pay_rate_type"),
