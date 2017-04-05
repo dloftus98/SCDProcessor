@@ -2,6 +2,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
+import java.text.SimpleDateFormat
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 
 
@@ -10,12 +11,17 @@ object SCDExample {
   def main(args: Array[String]) = {
 
     // Start the Spark context
-    val conf = new SparkConf()
-      .setAppName("SCDExample");
+    val conf = new SparkConf().setAppName("SCDExample")
 
     val sc = new SparkContext(conf)
 
     val sqlContext = new HiveContext(sc)
+
+    val run_date = args(0)
+    val as_of_date = new SimpleDateFormat("MM/dd/yyy").parse(run_date)
+    val as_of_date_str = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(as_of_date) //"2014-11-26 00:00:00"
+
+    //println(run_date, as_of_date_str)
 
     // Read some example file to a test RDD
     // val df = sqlContext.sql("select run_date, count(*) as cnt from phila_schools.school_employees group by run_date order by cnt desc")
@@ -24,7 +30,7 @@ object SCDExample {
                                       " home_organization, home_organization_description, organization_level," +
                                       " type_of_representation, gender," +
                                       " from_unixtime(unix_timestamp(run_date, 'MM/dd/yyyy')) as as_of_date" +
-                                      " from phila_schools.employees where run_date='11/26/2014'")
+                                      " from phila_schools.employees where run_date='" + run_date + "'")
 
     val employee_d_tmp = sqlContext.sql("select * from phila_schools.employee_d")
 
@@ -48,7 +54,7 @@ object SCDExample {
 
     // val diff = joined.filter(joined("dim.pay_rate").notEqual(joined("stg.pay_rate")))
 
-    val joined2 = joined.flatMap((r => doStuff(r)))
+    val joined2 = joined.flatMap((r => doStuff(r, as_of_date_str)))
 
     val new_dim = sqlContext.createDataFrame(joined2, dimSchema)
 
@@ -58,7 +64,7 @@ object SCDExample {
     // df2.orderBy(desc("count")).show()
   }
 
-  def doStuff(joinedRow: Row) :Array[Row] = {
+  def doStuff(joinedRow: Row, as_of_date_str: String) :Array[Row] = {
 
     // println(joinedRow.schema.printTreeString())
 
@@ -107,7 +113,7 @@ object SCDExample {
         joinedRow.getAs("gender_d"),
         joinedRow.getAs("version_d"),
         joinedRow.getAs("begin_date_d"),
-        "2014-11-26 00:00:00",
+        as_of_date_str, //"2014-11-26 00:00:00",
         "Y")
 
       return Array(r)
