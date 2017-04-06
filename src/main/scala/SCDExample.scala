@@ -49,11 +49,17 @@ object SCDExample {
 
     val dimSchema = employee_d_most_recent.schema
 
-    val joined = renamed_employee_d.join(employee_stg,
-                                    renamed_employee_d("last_name_d")===employee_stg("last_name") &&
-                                    renamed_employee_d("first_name_d")===employee_stg("first_name") &&
-                                    renamed_employee_d("home_organization_d")===employee_stg("home_organization"),
-                                 "outer")
+//    val joined = renamed_employee_d.join(employee_stg,
+//                                    renamed_employee_d("last_name_d")===employee_stg("last_name") &&
+//                                    renamed_employee_d("first_name_d")===employee_stg("first_name") &&
+//                                    renamed_employee_d("home_organization_d")===employee_stg("home_organization"),
+//                                 "outer")
+
+    val joined = renamed_employee_d.join
+
+      .join(employee_stg,
+      Seq("last_name_d=last_name and first_name_d=first_name and home_organization_d=home_organization",
+      "outer")
 
     // val diff = joined.filter(joined("dim.pay_rate").notEqual(joined("stg.pay_rate")))
 
@@ -64,40 +70,42 @@ object SCDExample {
     //val dim_inserts = new_dim.filter(new_dim("key") === null).repartition(1)
     val dim_inserts = new_dim.filter("key is null").repartition(1)
 
-    dim_inserts.show(50)
+    //dim_inserts.show(50)
 
-    val dim_non_inserts = new_dim.filter(!(new_dim("key") === null))
+    val dim_non_inserts = new_dim.filter("key is not null")
+
+    //dim_non_inserts.show(50)
 
     val dim_inserts_new = dim_inserts.mapPartitions(iterator => {
-      val myList = iterator.toList
-
-      myList.map(r =>
+      //val indexed = iterator.zipWithIndex.toList
+      iterator.zipWithIndex.map(r =>
         Row(
-          69,
-          r.getAs("last_name"),
-          r.getAs("first_name"),
-          r.getAs("pay_rate_type"),
-          r.getAs("pay_rate"),
-          r.getAs("title_description"),
-          r.getAs("home_organization"),
-          r.getAs("home_organization_description"),
-          r.getAs("organization_level"),
-          r.getAs("type_of_representation"),
-          r.getAs("gender"),
-          r.getAs("version"),
-          r.getAs("begin_date"),
-          r.getAs("end_date"),
-          r.getAs("most_recent")
+          r._2 + max_key + 1,
+          r._1.getAs("last_name"),
+          r._1.getAs("first_name"),
+          r._1.getAs("pay_rate_type"),
+          r._1.getAs("pay_rate"),
+          r._1.getAs("title_description"),
+          r._1.getAs("home_organization"),
+          r._1.getAs("home_organization_description"),
+          r._1.getAs("organization_level"),
+          r._1.getAs("type_of_representation"),
+          r._1.getAs("gender"),
+          r._1.getAs("version"),
+          r._1.getAs("begin_date"),
+          r._1.getAs("end_date"),
+          r._1.getAs("most_recent")
         )
-      ).iterator
+      )
     })
 
-    val dim_inserts_new_df = sqlContext.createDataFrame(dim_inserts_new, dimSchema)
+    val unioned = sqlContext.createDataFrame(dim_inserts_new, dimSchema).unionAll(dim_non_inserts)
 
-    dim_inserts_new_df.show(50)
+    //dim_inserts_new_df.show(50)
 
     //dim_inserts_new_df.write.mode("overwrite").saveAsTable("phila_schools.temp_table_inserts")
     new_dim.write.mode("overwrite").saveAsTable("phila_schools.temp_table")
+    unioned.write.mode("overwrite").saveAsTable("phila_schools.temp_table_union")
 
     // val df2 = df.filter(!df("last_name").contains("LAST_NAME")).groupBy("run_date").count()
     // df2.orderBy(desc("count")).show()
