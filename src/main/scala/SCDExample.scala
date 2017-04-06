@@ -34,7 +34,7 @@ object SCDExample {
 
     val employee_d_tmp = sqlContext.sql("select * from phila_schools.employee_d")
 
-    val max_key = employee_d_tmp.agg(Map("key" -> "max")).collect()(0).getInt(0)
+    var max_key = employee_d_tmp.agg(Map("key" -> "max")).collect()(0).getInt(0)
     println("max_key = " + max_key)
 
     val employee_d_most_recent = employee_d_tmp.filter(employee_d_tmp("most_recent") === "Y")
@@ -61,11 +61,42 @@ object SCDExample {
 
     val new_dim = sqlContext.createDataFrame(joined2, dimSchema)
 
-    val dim_inserts = new_dim.filter(new_dim("key") === null).repartition(1)
+    //val dim_inserts = new_dim.filter(new_dim("key") === null).repartition(1)
+    val dim_inserts = new_dim.filter("key is null").repartition(1)
+
+    dim_inserts.show(50)
+
     val dim_non_inserts = new_dim.filter(!(new_dim("key") === null))
 
+    val dim_inserts_new = dim_inserts.mapPartitions(iterator => {
+      val myList = iterator.toList
 
+      myList.map(r =>
+        Row(
+          69,
+          r.getAs("last_name"),
+          r.getAs("first_name"),
+          r.getAs("pay_rate_type"),
+          r.getAs("pay_rate"),
+          r.getAs("title_description"),
+          r.getAs("home_organization"),
+          r.getAs("home_organization_description"),
+          r.getAs("organization_level"),
+          r.getAs("type_of_representation"),
+          r.getAs("gender"),
+          r.getAs("version"),
+          r.getAs("begin_date"),
+          r.getAs("end_date"),
+          r.getAs("most_recent")
+        )
+      ).iterator
+    })
 
+    val dim_inserts_new_df = sqlContext.createDataFrame(dim_inserts_new, dimSchema)
+
+    dim_inserts_new_df.show(50)
+
+    //dim_inserts_new_df.write.mode("overwrite").saveAsTable("phila_schools.temp_table_inserts")
     new_dim.write.mode("overwrite").saveAsTable("phila_schools.temp_table")
 
     // val df2 = df.filter(!df("last_name").contains("LAST_NAME")).groupBy("run_date").count()
