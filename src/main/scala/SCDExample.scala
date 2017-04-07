@@ -55,11 +55,15 @@ object SCDExample {
 //                                    renamed_employee_d("home_organization_d")===employee_stg("home_organization"),
 //                                 "outer")
 
-    val joined = renamed_employee_d.join
+    val df1KeyArray: Array[String] = Array("last_name_d", "first_name_d", "home_organization_d")
+    val df2KeyArray: Array[String] = Array("last_name", "first_name", "home_organization")
 
-      .join(employee_stg,
-      Seq("last_name_d=last_name and first_name_d=first_name and home_organization_d=home_organization",
-      "outer")
+    val joinExprs = df1KeyArray
+      .zip(df2KeyArray)
+      .map{case (c1, c2) => renamed_employee_d(c1) === employee_stg(c2)}
+      .reduce(_ && _)
+
+    val joined = renamed_employee_d.join(employee_stg, joinExprs, "outer")
 
     // val diff = joined.filter(joined("dim.pay_rate").notEqual(joined("stg.pay_rate")))
 
