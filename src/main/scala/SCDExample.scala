@@ -16,6 +16,7 @@ object SCDExample {
     val sc = new SparkContext(conf)
 
     val sqlContext = new HiveContext(sc)
+    sqlContext.refreshTable("phila_schools.employee_d")
 
     val run_date = args(0)
     val as_of_date = new SimpleDateFormat("MM/dd/yyy").parse(run_date)
@@ -33,6 +34,7 @@ object SCDExample {
                                       " from phila_schools.employees where run_date='" + run_date + "'")
 
     val employee_d_tmp = sqlContext.sql("select * from phila_schools.employee_d")
+    employee_d_tmp.show(50)
 
     var max_key = employee_d_tmp.agg(Map("key" -> "max")).collect()(0).getInt(0)
     println("max_key = " + max_key)
@@ -103,13 +105,16 @@ object SCDExample {
       )
     })
 
-    val unioned = sqlContext.createDataFrame(dim_inserts_new, dimSchema).unionAll(dim_non_inserts)
+    val unioned = sqlContext.createDataFrame(dim_inserts_new, dimSchema).unionAll(dim_non_inserts).unionAll(employee_d_old_recs)
 
     //dim_inserts_new_df.show(50)
 
     //dim_inserts_new_df.write.mode("overwrite").saveAsTable("phila_schools.temp_table_inserts")
-    new_dim.write.mode("overwrite").saveAsTable("phila_schools.temp_table")
+    //new_dim.write.mode("overwrite").saveAsTable("phila_schools.temp_table")
     unioned.write.mode("overwrite").saveAsTable("phila_schools.temp_table_union")
+    sqlContext.sql("ALTER TABLE phila_schools.employee_d RENAME TO phila_schools.employee_d_pre_" + run_date.replaceAll("/", "_"))
+    sqlContext.sql("ALTER TABLE phila_schools.temp_table_union RENAME TO phila_schools.employee_d")
+    sqlContext.sql("ALTER TABLE phila_schools.employee_d SET SERDEPROPERTIES ('path' = 'hdfs://ip-10-0-0-172.ec2.internal:8020/user/hive/warehouse/phila_schools.db/employee_d')")
 
     // val df2 = df.filter(!df("last_name").contains("LAST_NAME")).groupBy("run_date").count()
     // df2.orderBy(desc("count")).show()
