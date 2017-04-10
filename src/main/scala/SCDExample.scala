@@ -108,7 +108,7 @@ object SCDExample {
     unioned.write.mode("overwrite").saveAsTable("phila_schools.temp_table_union")
     sqlContext.sql("ALTER TABLE phila_schools.employee_d RENAME TO phila_schools.employee_d_pre_" + run_date.replaceAll("/", "_"))
     sqlContext.sql("ALTER TABLE phila_schools.temp_table_union RENAME TO phila_schools.employee_d")
-    sqlContext.sql("ALTER TABLE phila_schools.employee_d SET SERDEPROPERTIES ('path' = 'hdfs://localhost:9000/user/hive/warehouse/phila_schools.db/employee_d')")
+    sqlContext.sql("ALTER TABLE phila_schools.employee_d SET SERDEPROPERTIES ('path' = 'hdfs://ip-10-0-0-172.ec2.internal:8020/user/hive/warehouse/phila_schools.db/employee_d')")
 
     // val df2 = df.filter(!df("last_name").contains("LAST_NAME")).groupBy("run_date").count()
     // df2.orderBy(desc("count")).show()
@@ -149,6 +149,7 @@ object SCDExample {
                joinedRow.getAs("home_organization") == null) {
       // employee doesn't exist in the incoming data must no longer be employed
       // close the record out
+
       r = Row(
         joinedRow.getAs("key_d"),
         joinedRow.getAs("last_name_d"),
@@ -163,7 +164,7 @@ object SCDExample {
         joinedRow.getAs("gender_d"),
         joinedRow.getAs("version_d"),
         joinedRow.getAs("begin_date_d"),
-        as_of_date_str, //"2014-11-26 00:00:00",
+        if (joinedRow.getAs("end_date_d") == null)  as_of_date_str else joinedRow.getAs("end_date_d"), //"2014-11-26 00:00:00",
         "Y")
 
       return Array(r)
