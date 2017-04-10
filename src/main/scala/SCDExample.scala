@@ -22,8 +22,6 @@ object SCDExample {
     val as_of_date = new SimpleDateFormat("MM/dd/yyy").parse(run_date)
     val as_of_date_str = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(as_of_date) //"2014-11-26 00:00:00"
 
-    //println(run_date, as_of_date_str)
-
     // Read some example file to a test RDD
     // val df = sqlContext.sql("select run_date, count(*) as cnt from phila_schools.school_employees group by run_date order by cnt desc")
 
@@ -34,7 +32,6 @@ object SCDExample {
                                       " from phila_schools.employees where run_date='" + run_date + "'")
 
     val employee_d_tmp = sqlContext.sql("select * from phila_schools.employee_d")
-    employee_d_tmp.show(50)
 
     var max_key = employee_d_tmp.agg(Map("key" -> "max")).collect()(0).getInt(0)
     println("max_key = " + max_key)
@@ -45,7 +42,6 @@ object SCDExample {
     // process most recent dim records and new incoming records
     val columns = employee_d_most_recent.columns.map(a => a+"_d")
 
-    //val columns = employee_d_most_recent.columns.map(a => a+"_d")
 
     val renamed_employee_d = employee_d_most_recent.toDF(columns :_*)
 
@@ -65,9 +61,7 @@ object SCDExample {
       .map{case (c1, c2) => renamed_employee_d(c1) === employee_stg(c2)}
       .reduce(_ && _)
 
-    val joined = renamed_employee_d.join(employee_stg, joinExprs, "outer")
-
-    // val diff = joined.filter(joined("dim.pay_rate").notEqual(joined("stg.pay_rate")))
+    val joined = renamed_employee_d.join(employee_stg, joinExprs, "outer").repartition(5)
 
     val joined2 = joined.flatMap((r => doStuff(r, as_of_date_str)))
 
@@ -114,7 +108,7 @@ object SCDExample {
     unioned.write.mode("overwrite").saveAsTable("phila_schools.temp_table_union")
     sqlContext.sql("ALTER TABLE phila_schools.employee_d RENAME TO phila_schools.employee_d_pre_" + run_date.replaceAll("/", "_"))
     sqlContext.sql("ALTER TABLE phila_schools.temp_table_union RENAME TO phila_schools.employee_d")
-    sqlContext.sql("ALTER TABLE phila_schools.employee_d SET SERDEPROPERTIES ('path' = 'hdfs://ip-10-0-0-172.ec2.internal:8020/user/hive/warehouse/phila_schools.db/employee_d')")
+    sqlContext.sql("ALTER TABLE phila_schools.employee_d SET SERDEPROPERTIES ('path' = 'hdfs://localhost:9000/user/hive/warehouse/phila_schools.db/employee_d')")
 
     // val df2 = df.filter(!df("last_name").contains("LAST_NAME")).groupBy("run_date").count()
     // df2.orderBy(desc("count")).show()
@@ -204,8 +198,8 @@ object SCDExample {
           joinedRow.getAs("gender_d"),
           joinedRow.getAs("version_d"),
           joinedRow.getAs("begin_date_d"),
-          null,
-          "Y")
+          as_of_date_str,  //this is the only difference from the existing dim record, probably have to think about how to handle this
+          "Y") //hard coding to Y because only Y's get passed into this routine
 
         return Array(r)
 
