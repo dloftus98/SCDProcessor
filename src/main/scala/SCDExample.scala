@@ -29,15 +29,15 @@ object SCDExample {
                                       " home_organization, home_organization_description, organization_level," +
                                       " type_of_representation, gender," +
                                       " from_unixtime(unix_timestamp(run_date, 'MM/dd/yyyy')) as as_of_date" +
-                                      " from phila_schools.employees where run_date='" + run_date + "'")
+                                      " from phila_schools.employees_filtered where run_date='" + run_date + "'")
 
     val employee_d_tmp = sqlContext.sql("select * from phila_schools.employee_d")
 
     var max_key = employee_d_tmp.agg(Map("key" -> "max")).collect()(0).getInt(0)
     println("max_key = " + max_key)
 
-    val employee_d_most_recent = employee_d_tmp.filter(employee_d_tmp("most_recent") === "Y")
-    val employee_d_old_recs = employee_d_tmp.filter(employee_d_tmp("most_recent") === "N")
+    val employee_d_most_recent = employee_d_tmp.filter(employee_d_tmp("end_date").isNull) //open records
+    val employee_d_old_recs = employee_d_tmp.filter(employee_d_tmp("end_date").isNotNull) //closed records
 
     // process most recent dim records and new incoming records
     val columns = employee_d_most_recent.columns.map(a => a+"_d")
@@ -61,7 +61,7 @@ object SCDExample {
       .map{case (c1, c2) => renamed_employee_d(c1) === employee_stg(c2)}
       .reduce(_ && _)
 
-    val joined = renamed_employee_d.join(employee_stg, joinExprs, "outer").repartition(5)
+    val joined = renamed_employee_d.join(employee_stg, joinExprs, "outer")
 
     val joined2 = joined.flatMap((r => doStuff(r, as_of_date_str)))
 
@@ -99,7 +99,7 @@ object SCDExample {
       )
     })
 
-    val unioned = sqlContext.createDataFrame(dim_inserts_new, dimSchema).unionAll(dim_non_inserts).unionAll(employee_d_old_recs)
+    val unioned = sqlContext.createDataFrame(dim_inserts_new, dimSchema).unionAll(dim_non_inserts).unionAll(employee_d_old_recs).repartition(5)
 
     //dim_inserts_new_df.show(50)
 
@@ -164,7 +164,7 @@ object SCDExample {
         joinedRow.getAs("gender_d"),
         joinedRow.getAs("version_d"),
         joinedRow.getAs("begin_date_d"),
-        if (joinedRow.getAs("end_date_d") == null)  as_of_date_str else joinedRow.getAs("end_date_d"), //"2014-11-26 00:00:00",
+        as_of_date_str, //"2014-11-26 00:00:00",
         "Y")
 
       return Array(r)
@@ -199,7 +199,7 @@ object SCDExample {
           joinedRow.getAs("gender_d"),
           joinedRow.getAs("version_d"),
           joinedRow.getAs("begin_date_d"),
-          as_of_date_str,  //this is the only difference from the existing dim record, probably have to think about how to handle this
+          null,  //this is the only difference from the existing dim record, probably have to think about how to handle this
           "Y") //hard coding to Y because only Y's get passed into this routine
 
         return Array(r)
@@ -221,7 +221,7 @@ object SCDExample {
           joinedRow.getAs("gender_d"),
           joinedRow.getAs("version_d"),
           joinedRow.getAs("begin_date_d"),
-          joinedRow.getAs("as_of_date"),
+          as_of_date_str,
           "N")
 
         new_r = Row(
@@ -237,7 +237,7 @@ object SCDExample {
           joinedRow.getAs("type_of_representation"),
           joinedRow.getAs("gender"),
           joinedRow.getAs("version_d").asInstanceOf[Int] + 1,
-          joinedRow.getAs("as_of_date"),
+          joinedRow.getAs("begin_date_d"),
           null,
           "Y"
         )
