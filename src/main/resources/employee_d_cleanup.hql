@@ -1,0 +1,10 @@
+drop table employee_d;
+drop table employee_d_pre_1_1_2016;
+drop table employee_d_pre_1_1_2017;
+drop table employee_d_pre_10_1_2015;
+drop table employee_d_pre_10_1_2016;
+drop table employee_d_pre_4_1_2015;
+drop table employee_d_pre_4_1_2016;
+drop table employee_d_pre_7_1_2015;
+drop table employee_d_pre_7_1_2016;
+alter table employee_d_pre_11_26_2014 rename to employee_d;

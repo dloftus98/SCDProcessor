@@ -1,7 +1,7 @@
 drop table employee_d;
 
 create table employee_d as
-select 
+select
    row_number() over () as key,
    last_name,
    first_name,
@@ -17,6 +17,5 @@ select
    from_unixtime(unix_timestamp(run_date, 'MM/dd/yyyy')) as begin_date,
    cast(NULL as string) as end_date,
    'Y' as most_recent
-   from school_employees
+   from employees_filtered
    where run_date='7/15/2014';
-
