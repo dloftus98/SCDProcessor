@@ -1,6 +1,6 @@
-drop table employees_filtered;
+drop table phila_schools.employees_filtered;
 
-create table employees_filtered as
+create table phila_schools.employees_filtered as
 select 
    last_name,
    first_name,
@@ -17,5 +17,5 @@ select
 select
    row_number() over (partition by last_name, first_name, home_organization, run_date) as group_key,
    *
-   from employees) iq
+   from phila_schools.employees) iq
    where group_key=1;

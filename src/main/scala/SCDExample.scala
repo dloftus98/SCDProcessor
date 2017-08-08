@@ -108,7 +108,7 @@ object SCDExample {
     unioned.write.mode("overwrite").saveAsTable("phila_schools.temp_table_union")
     sqlContext.sql("ALTER TABLE phila_schools.employee_d RENAME TO phila_schools.employee_d_pre_" + run_date.replaceAll("/", "_"))
     sqlContext.sql("ALTER TABLE phila_schools.temp_table_union RENAME TO phila_schools.employee_d")
-    sqlContext.sql("ALTER TABLE phila_schools.employee_d SET SERDEPROPERTIES ('path' = 'hdfs://ip-10-0-0-172.ec2.internal:8020/user/hive/warehouse/phila_schools.db/employee_d')")
+    sqlContext.sql("ALTER TABLE phila_schools.employee_d SET SERDEPROPERTIES ('path' = 'hdfs://localhost:9000/user/hive/warehouse/phila_schools.db/employee_d')")
 
     // val df2 = df.filter(!df("last_name").contains("LAST_NAME")).groupBy("run_date").count()
     // df2.orderBy(desc("count")).show()
