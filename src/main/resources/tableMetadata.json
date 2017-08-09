@@ -1,14 +1,16 @@
 {
   "database":"phila_schools",
   "sourceTable":"employees",
-  "tagetTable":"employee_d",
+  "targetTable":"employee_d",
+  "keys": [
+    {"first_name":"first_name"},
+    {"last_name":"last_name"},
+    {"home_organization":"home_organization"}
+  ],
   "fields": [
-    {"sourceField":"last_name","targetField":"last_name","type":"2"},
-    {"sourceField":"first_name","targetField":"first_name","type":"2"},
     {"sourceField":"pay_rate_type","targetField":"pay_rate_type","type":"2"},
     {"sourceField":"pay_rate","targetField":"pay_rate","type":"2"},
     {"sourceField":"title_description","targetField":"title_description","type":"2"},
-    {"sourceField":"home_organization","targetField":"home_organization","type":"2"},
     {"sourceField":"home_organization_description","targetField":"home_organization_description","type":"2"},
     {"sourceField":"organization_level","targetField":"organization_level","type":"2"},
     {"sourceField":"type_of_representation","targetField":"type_of_representation","type":"2"},
