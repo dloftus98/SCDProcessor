@@ -2,10 +2,9 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
+import java.sql.Timestamp
+import org.apache.spark.sql.types.StructField
 import java.text.SimpleDateFormat
-
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils.ConfigFile
-
 import scala.io.Source
 import scala.collection.mutable.ListBuffer
 import scala.util.parsing.json.JSON
@@ -170,10 +169,10 @@ object SCDProcessor {
       iterator.zipWithIndex.map(r =>
         Row.fromSeq(
           r._2 + max_key + 1 ::
-          scdMetadata.targetKeys.map(f => r._1.getAs(f).asInstanceOf[String]) :::
-          scdMetadata.targetFields.map(f => r._1.getAs(f).asInstanceOf[String]) :::
-          List(r._1.getAs("begin_date").asInstanceOf[String],
-            r._1.getAs("end_date").asInstanceOf[String],
+          scdMetadata.targetKeys.map(f => r._1.getAs[Any](f)) :::
+          scdMetadata.targetFields.map(f => r._1.getAs[Any](f)) :::
+          List(r._1.getAs("begin_date").asInstanceOf[Timestamp],
+            r._1.getAs("end_date").asInstanceOf[Timestamp],
             r._1.getAs("version").asInstanceOf[Int],
             r._1.getAs("most_recent").asInstanceOf[String])
         )
@@ -225,9 +224,9 @@ object SCDProcessor {
     if (newRecordCondition) {
       println("newRecordCondition " + joinedRow)
 
-      val keyValues = scdMetadata.sourceKeys.map(k => joinedRow.getAs(k).asInstanceOf[String])
-      val fieldValues = scdMetadata.sourceFields.map(f => joinedRow.getAs(f).asInstanceOf[String])
-      val scdValues = List(as_of_date_str, null, 1, "Y")
+      val keyValues = scdMetadata.sourceKeys.map(k => joinedRow.getAs[Any](k))
+      val fieldValues = scdMetadata.sourceFields.map(f => joinedRow.getAs[Any](f))
+      val scdValues = List(Timestamp.valueOf(as_of_date_str), null, 1, "Y")
 
       val values = null :: keyValues ::: fieldValues ::: scdValues
 
@@ -238,10 +237,10 @@ object SCDProcessor {
     } else if (noRecordCondition) {
       println("noRecordCondition " + joinedRow)
 
-      val keyValues = scdMetadata.targetKeysRenamed.map(k => joinedRow.getAs(k).asInstanceOf[String])
-      val fieldValues = scdMetadata.targetFieldsRenamed.map(f => joinedRow.getAs(f).asInstanceOf[String])
-      val scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[String],
-        joinedRow.getAs("end_date_d").asInstanceOf[String],
+      val keyValues = scdMetadata.targetKeysRenamed.map(k => joinedRow.getAs[Any](k))
+      val fieldValues = scdMetadata.targetFieldsRenamed.map(f => joinedRow.getAs[Any](f))
+      val scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[Timestamp],
+        joinedRow.getAs("end_date_d").asInstanceOf[Timestamp],
         joinedRow.getAs("version_d").asInstanceOf[Int],
         joinedRow.getAs("most_recent_d").asInstanceOf[String])
 
@@ -256,15 +255,19 @@ object SCDProcessor {
 
       //cat all type 2 and compare
 
-      val type2TargetFields = scdMetadata.type2TargetFieldsRenamed.map(f => joinedRow.getAs(f).asInstanceOf[String]).mkString
-      val type2SourceFields = scdMetadata.type2SourceFields.map(f => joinedRow.getAs(f).asInstanceOf[String]).mkString
+      val type2TargetFields = scdMetadata.type2TargetFieldsRenamed.map(f => processFieldsWithSchema(f, joinedRow)).mkString
+      println("type2TargetFieldsCat = " + type2TargetFields)
+
+      val type2SourceFields = scdMetadata.type2SourceFields.map(f => joinedRow.getAs[Any](f)).mkString
 
       if (type2TargetFields == type2SourceFields) {
         println("type 2 fields match")
 
         //only if type 2 fields match to we proceed to checking type 1
-        val type1TargetFields = scdMetadata.type1TargetFieldsRenamed.map(f => joinedRow.getAs(f).asInstanceOf[String]).mkString
-        val type1SourceFields = scdMetadata.type1SourceFields.map(f => joinedRow.getAs(f).asInstanceOf[String]).mkString
+//        val type1TargetFields = scdMetadata.type1TargetFieldsRenamed.map(f => joinedRow.getAs(f).asInstanceOf[String]).mkString
+        val type1TargetFields = scdMetadata.type1TargetFieldsRenamed.map(f => processFieldsWithSchema(f, joinedRow)).mkString
+//        val type1SourceFields = scdMetadata.type1SourceFields.map(f => joinedRow.getAs(f).asInstanceOf[String]).mkString
+        val type1SourceFields = scdMetadata.type1SourceFields.map(f => processFieldsWithSchema(f,joinedRow)).mkString
 
         if (type1TargetFields == type1SourceFields) {
           println("type 1 fields match")
@@ -285,10 +288,12 @@ object SCDProcessor {
         } else {
           println("type 1 fields don't match")
 
-          var keyValues = scdMetadata.sourceKeys.map(k => joinedRow.getAs(k).asInstanceOf[String])
-          var fieldValues = scdMetadata.sourceFields.map(f => joinedRow.getAs(f).asInstanceOf[String])
-          var scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[String],
-            joinedRow.getAs("end_date_d").asInstanceOf[String],
+//          var keyValues = scdMetadata.sourceKeys.map(k => joinedRow.getAs(k).asInstanceOf[String])
+          var keyValues = scdMetadata.sourceKeys.map(k => joinedRow.getAs[Any](k))
+//          var fieldValues = scdMetadata.sourceFields.map(f => joinedRow.getAs(f).asInstanceOf[String])
+          var fieldValues = scdMetadata.sourceFields.map(f => joinedRow.getAs[Any](f))
+          var scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[Timestamp],
+            joinedRow.getAs("end_date_d").asInstanceOf[Timestamp],
             joinedRow.getAs("version_d").asInstanceOf[Int],
             joinedRow.getAs("most_recent_d").asInstanceOf[String])
 
@@ -306,10 +311,10 @@ object SCDProcessor {
         //we don't bother checking type 1 fields in this case because we already know we will take the source row's data
 
         //close out the old row
-        var keyValues = scdMetadata.targetKeysRenamed.map(k => joinedRow.getAs(k).asInstanceOf[String])
-        var fieldValues = scdMetadata.targetFieldsRenamed.map(f => joinedRow.getAs(f).asInstanceOf[String])
-        var scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[String],
-          as_of_date_str, //filling out the end effective date
+        var keyValues = scdMetadata.targetKeysRenamed.map(k => joinedRow.getAs[Any](k))
+        var fieldValues = scdMetadata.targetFieldsRenamed.map(f => joinedRow.getAs[Any](f))
+        var scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[Timestamp],
+          Timestamp.valueOf(as_of_date_str), //filling out the end effective date
           joinedRow.getAs("version_d").asInstanceOf[Int],
           "N") //setting the row as not the most recent
 
@@ -318,14 +323,14 @@ object SCDProcessor {
         r = Row.fromSeq(values)
 
         //construct the new row using the source data
-        keyValues = scdMetadata.sourceKeys.map(k => joinedRow.getAs(k).asInstanceOf[String])
-        fieldValues = scdMetadata.sourceFields.map(f => joinedRow.getAs(f).asInstanceOf[String])
-        scdValues = List(as_of_date_str,
+        keyValues = scdMetadata.sourceKeys.map(k => joinedRow.getAs[Any](k))
+        fieldValues = scdMetadata.sourceFields.map(f => joinedRow.getAs[Any](f))
+        scdValues = List(Timestamp.valueOf(as_of_date_str),
           null,
           joinedRow.getAs("version_d").asInstanceOf[Int] + 1,
           "Y")
 
-        values = joinedRow.getAs("key_d").asInstanceOf[Int] :: keyValues ::: fieldValues ::: scdValues
+        values = null :: keyValues ::: fieldValues ::: scdValues
         //println(values)
 
         new_r = Row.fromSeq(values)
@@ -336,5 +341,32 @@ object SCDProcessor {
 
     }
     return Array(r) //should never get here
+  }
+
+  def processFieldsWithSchema(f: String, joinedRow: Row) :String = {
+    val fieldType = joinedRow.schema.apply(f).dataType.simpleString
+    println("schema map = " + fieldType + ", " + f)
+
+    val retString = checkType(f, fieldType, joinedRow)
+    return retString
+  }
+
+  def checkType(field: String, fieldType: String, row: Row) :String = {
+    var retStr: String = null
+
+    if (fieldType == "string") {
+      println("Found StringType")
+      retStr = row.getAs[String](field)
+    }
+    else if (fieldType == "int") {
+      println("Found IntegerType")
+      retStr = row.getAs[Int](field).toString
+    } else if (fieldType == "double") {
+      println("Found DoubleType")
+      retStr = row.getAs[Double](field).toString
+    }
+
+    println("returning " + retStr)
+    return retStr
   }
 }
