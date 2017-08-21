@@ -1,4 +1,4 @@
-create table employee_d_v2 as
+create table employee_d_v3 as
 select key,
    first_name,
    last_name,
@@ -6,6 +6,7 @@ select key,
    pay_rate_type,
    cast(pay_rate as int) as pay_rate,
    rand() as double_test,
+   cast(100*rand() as decimal(10,2)) as decimal_test,
    title_description,
    home_organization_description,
    organization_level,
@@ -17,14 +18,15 @@ select key,
    most_recent
    from employee_d;
 
-drop table employees_filtered_v2;
-create table employees_filtered_v2 as
+drop table employees_filtered_v3;
+create table employees_filtered_v3 as
 select first_name,
    last_name,
    home_organization,
    pay_rate_type,
    cast(pay_rate as int) as pay_rate,
    rand() as double_test,
+   cast(100*rand() as decimal(10,2)) as decimal_test,
    title_description,
    home_organization_description,
    organization_level,

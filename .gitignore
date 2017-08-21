@@ -7,4 +7,4 @@ SCDExample.iml
 /target/**
 /target
 
-/src/main/resources/hive-site.xml
+/hive-site.xml
