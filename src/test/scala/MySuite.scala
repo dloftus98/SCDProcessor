@@ -1,6 +1,12 @@
 import org.apache.spark.sql.hive.HiveContext
+import org.apache.spark.sql.types.{DataTypes, DecimalType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
+import java.sql.Timestamp
+
+import org.apache.spark.sql.Row
+
+import scala.math.BigDecimal
 import scala.io.Source
 
 class MySuite extends FunSuite with
@@ -16,6 +22,26 @@ class MySuite extends FunSuite with
     val sparkConfig = new SparkConf()
     sc = new SparkContext("local[2]", "unit test", sparkConfig)
     hiveContext = new HiveContext(sc)
+
+    val test: DecimalType = DataTypes.createDecimalType(5,2)
+
+    test = null
+
+    val stageSchema = StructType(Seq(StructField("account-num", DataTypes.StringType),
+      StructField("first-name", DataTypes.StringType),
+      StructField("last-name", DataTypes.StringType),
+      StructField("street", DataTypes.StringType),
+      StructField("city", DataTypes.StringType),
+      StructField("zip", DataTypes.StringType),
+      StructField("children", DataTypes.IntegerType),
+      StructField("salary", DataTypes.createDecimalType(10,2)),
+      StructField("double-test", DataTypes.DoubleType),
+      StructField("timestamp-test", DataTypes.TimestampType)))
+
+    val stageRow: List[Row] = List(Row.fromSeq(Seq(100, "Dan", "Loftus", "17000 Horizon Way", "Mount Laurel", "08054", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"))))
+
+    val stageDf = hiveContext.createDataFrame(stageRow, stageSchema)
+
   }
 
   override def afterAll(): Unit = {
