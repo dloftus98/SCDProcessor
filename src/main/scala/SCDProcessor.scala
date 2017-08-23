@@ -38,8 +38,11 @@ object SCDProcessor {
     val as_of_date = new SimpleDateFormat("MM/dd/yyy").parse(run_date)
     val as_of_date_str = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(as_of_date) //"2014-11-26 00:00:00"
 
+//    val sourceSqlText = "select " + scdMetadata.sourceKeys.mkString(", ") + ", " + scdMetadata.sourceFields.mkString(", ") +
+//      " from " + scdMetadata.sourceDatabase + "." + scdMetadata.sourceTable + " where run_date='" + run_date + "'"
+
     val sourceSqlText = "select " + scdMetadata.sourceKeys.mkString(", ") + ", " + scdMetadata.sourceFields.mkString(", ") +
-      " from " + scdMetadata.sourceDatabase + "." + scdMetadata.sourceTable + " where run_date='" + run_date + "'"
+      " from " + scdMetadata.sourceDatabase + "." + scdMetadata.sourceTable
 
     log.info(sourceSqlText)
 

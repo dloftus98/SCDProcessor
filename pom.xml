@@ -27,6 +27,7 @@
             <version>1.6.3</version>
             <scope>provided</scope>
         </dependency>
+        <!--
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_2.10</artifactId>
@@ -44,7 +45,15 @@
             <artifactId>derbyclient</artifactId>
             <version>10.10.2.0</version>
             <scope>test</scope>
+        </dependency> -->
+        <!-- https://mvnrepository.com/artifact/com.holdenkarau/spark-testing-base_2.10 -->
+        <dependency>
+            <groupId>com.holdenkarau</groupId>
+            <artifactId>spark-testing-base_2.10</artifactId>
+            <version>1.6.3_0.7.4</version>
+            <scope>test</scope>
         </dependency>
+
 
     </dependencies>
     <build>

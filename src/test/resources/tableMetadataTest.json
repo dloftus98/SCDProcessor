@@ -1,23 +1,18 @@
 {
-  "sourceDatabase":"phila_schools",
-  "targetDatabase":"phila_schools",
-  "sourceTable":"employees_filtered_v3",
-  "targetTable":"employee_d_v3",
-  "outputTable":"employee_d_v3_tmp",
+  "sourceDatabase":"source_db",
+  "targetDatabase":"target_db",
+  "sourceTable":"stage_table",
+  "targetTable":"target_table",
+  "outputTable":"output_table",
   "keys": [
-    {"first_name":"first_name"},
-    {"last_name":"last_name"},
-    {"home_organization":"home_organization"}
+    {"account_number":"account_number"}
   ],
   "fields": [
-    {"sourceField":"pay_rate_type","targetField":"pay_rate_type","type":"2"},
-    {"sourceField":"pay_rate","targetField":"pay_rate","type":"2"},
-    {"sourceField":"double_test","targetField":"double_test","type":"1"},
-    {"sourceField":"decimal_test","targetField":"decimal_test","type":"1"},
-    {"sourceField":"title_description","targetField":"title_description","type":"2"},
-    {"sourceField":"home_organization_description","targetField":"home_organization_description","type":"1"},
-    {"sourceField":"organization_level","targetField":"organization_level","type":"2"},
-    {"sourceField":"type_of_representation","targetField":"type_of_representation","type":"2"},
-    {"sourceField":"gender","targetField":"gender","type":"2"}
+    {"sourceField":"first_name","targetField":"first_name","type":"2"},
+    {"sourceField":"last_name","targetField":"last_name","type":"2"},
+    {"sourceField":"city","targetField":"city","type":"2"},
+    {"sourceField":"children","targetField":"children","type":"2"},
+    {"sourceField":"salary","targetField":"salary","type":"2"},
+    {"sourceField":"double_test","targetField":"double_test","type":"1"}
   ]
 }
