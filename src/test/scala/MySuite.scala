@@ -1,33 +1,32 @@
 import org.apache.spark.sql.hive.HiveContext
-import org.apache.spark.sql.hive.test.TestHiveContext
 import org.apache.spark.sql.types.{DataTypes, DecimalType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
+import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import java.sql.Timestamp
 
-import com.holdenkarau.spark.testing.{DataFrameSuiteBase, DataFrameSuiteBaseLike, SharedSparkContext}
 import org.apache.spark.sql.{DataFrame, Row}
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.math.BigDecimal
 import scala.io.Source
 
-class MySuite extends FunSuite with DataFrameSuiteBase {
+class MySuite extends FunSuite with BeforeAndAfterAll {
 
-//  @transient var sc: SparkContext = null
-//  @transient var hiveContext: HiveContext = null
+  @transient var sc: SparkContext = null
+  @transient var hiveContext: HiveContext = null
   var dimDf: DataFrame = null;
   var stageDf: DataFrame = null;
+  var configStr: String = null;
 
-  test("Test table creation and summing of counts") {
-    val hiveContext = sqlContext
+  override def beforeAll(): Unit = {
+    val sparkConf = new SparkConf()
+      .set("spark.eventLog.enabled", "true")
+
+    hiveContext = new HiveContext(new SparkContext("local", "unittest", sparkConf))
 
     val test: DecimalType = DataTypes.createDecimalType(5,2)
 
     val stageSchema = StructType(Seq(
-      StructField("account_num", DataTypes.StringType),
+      StructField("account_number", DataTypes.StringType),
       StructField("first_name", DataTypes.StringType),
       StructField("last_name", DataTypes.StringType),
       StructField("city", DataTypes.StringType),
@@ -39,7 +38,7 @@ class MySuite extends FunSuite with DataFrameSuiteBase {
 
     val dimSchema = StructType(Seq(
       StructField("key", DataTypes.IntegerType),
-      StructField("account_num", DataTypes.StringType),
+      StructField("account_number", DataTypes.StringType),
       StructField("first_name", DataTypes.StringType),
       StructField("last_name", DataTypes.StringType),
       StructField("city", DataTypes.StringType),
@@ -70,49 +69,38 @@ class MySuite extends FunSuite with DataFrameSuiteBase {
     stageDf = hiveContext.createDataFrame(stageRdd, stageSchema)
     dimDf = hiveContext.createDataFrame(dimRdd, dimSchema)
 
-    //    hiveContext.sql("create database if not exists source_db location 'file:///tmp/source_db'")
-    //    hiveContext.sql("create database if not exists target_db location 'file:///tmp/target_db'")
-    hiveContext.sql("create database if not exists source_db")
-    hiveContext.sql("create database if not exists target_db")
+    hiveContext.sql("create database if not exists source_db location 'file:///tmp/source_db'")
+    hiveContext.sql("create database if not exists target_db location 'file:///tmp/target_db'")
 
     stageDf.write.mode("overwrite").saveAsTable("source_db.stage_table")
 
     dimDf.write.mode("overwrite").saveAsTable("target_db.target_table")
 
-    hiveContext.sql("select * from source_db.source_table").collect.foreach(println)
-    hiveContext.sql("select * from target_db.target_table").collect.foreach(println)
-
-    val configStr = Source.fromFile("./src/test/resources/tableMetadataTest.json")
+    configStr = Source.fromFile("./src/test/resources/tableMetadataTest.json")
       .getLines()
       .mkString
 
+  }
+
+  override def afterAll(): Unit = {
+    hiveContext.sql("drop table source_db.stage_table")
+    hiveContext.sql("drop table target_db.target_table")
+    hiveContext.sql("drop table target_db.output_table")
+    hiveContext.sql("drop database source_db")
+    hiveContext.sql("drop database target_db")
+
+//    sc.stop()
+  }
+
+  test("Test table creation and summing of counts") {
+
     SCDProcessor.run(hiveContext, configStr, "12/26/2014")
 
-    hiveContext.sql("select count(*) from target_db.target_table").show
+    hiveContext.sql("select count(*) from target_db.output_table").show
 
-    val rows = hiveContext.sql("select count(*) from target_db.target_table").collect()(0).getLong(0)
+    val rows = hiveContext.sql("select count(*) from target_db.output_table").collect()(0).getLong(0)
 
-    assert(rows == 23252L, "The row count should be 44000 but " + rows + " were found.")
+    assert(rows == 6L, "The row count should be 6 but " + rows + " were found.")
 
-    //    hiveContext.sql("drop table source_db.source_table")
-    //    hiveContext.sql("drop table target_db.target_table")
-    //    hiveContext.sql("drop table target_db.output_table")
-    //    hiveContext.sql("drop database source_db")
-    //    hiveContext.sql("drop database target_db")
-
-    val f: Future[String] = Future {
-      Thread.sleep(2000)
-      "future value"
-    }
-
-    val f2 = f map { s =>
-      println("OK!")
-      println("OK!")
-    }
-
-    Await.ready(f2, 60 seconds)
-    println("exit")
-
-    //sc.stop()
   }
 }

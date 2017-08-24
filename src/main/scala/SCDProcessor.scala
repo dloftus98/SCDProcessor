@@ -117,8 +117,6 @@ object SCDProcessor {
 
     val unioned = sqlContext.createDataFrame(dim_inserts_new, dimSchema).unionAll(dim_non_inserts).unionAll(targetDfClosedRecs).repartition(5)
 
-    unioned.orderBy("first_name", "last_name", "home_organization", "version")
-
     unioned.write.format("parquet").saveAsTable(scdMetadata.targetDatabase + "." + scdMetadata.outputTable)
   }
 
