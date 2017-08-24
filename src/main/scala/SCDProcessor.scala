@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat
 import scala.io.Source
 import scala.collection.mutable.ListBuffer
 import scala.util.parsing.json.JSON
+import java.math.BigDecimal
 
 import org.apache.log4j.Logger
 
@@ -129,6 +130,7 @@ object SCDProcessor {
 
     var r = Row.empty
     var new_r = Row.empty
+    var rowArray: Array[Row] = null;
 
     // new record
     // keys don't exist in the dim
@@ -162,7 +164,7 @@ object SCDProcessor {
 
 //      log.info(values)
 
-      return Array(Row.fromSeq(values))
+      rowArray = Array(Row.fromSeq(values))
 
     } else if (noRecordCondition) {
 //      log.info("noRecordCondition " + joinedRow)
@@ -178,7 +180,7 @@ object SCDProcessor {
 
 //      log.info(values)
 
-      return Array(Row.fromSeq(values))
+      rowArray = Array(Row.fromSeq(values))
 
     } else if (matchingRecordCondition) {
 //      log.info("matchingRecordCondition " + joinedRow)
@@ -202,10 +204,10 @@ object SCDProcessor {
         if (type1TargetFields == type1SourceFields) {
 //          log.info("type 1 fields match")
 
-          var keyValues = scdMetadata.targetKeysRenamed.map(k => joinedRow.getAs(k).asInstanceOf[String])
-          var fieldValues = scdMetadata.targetFieldsRenamed.map(f => joinedRow.getAs(f).asInstanceOf[String])
-          var scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[String],
-            joinedRow.getAs("end_date_d").asInstanceOf[String],
+          var keyValues = scdMetadata.targetKeysRenamed.map(k => joinedRow.getAs[Any](k))
+          var fieldValues = scdMetadata.targetFieldsRenamed.map(f => joinedRow.getAs[Any](f))
+          var scdValues = List(joinedRow.getAs("begin_date_d").asInstanceOf[Timestamp],
+            joinedRow.getAs("end_date_d").asInstanceOf[Timestamp],
             joinedRow.getAs("version_d").asInstanceOf[Int],
             joinedRow.getAs("most_recent_d").asInstanceOf[String])
 
@@ -213,7 +215,7 @@ object SCDProcessor {
 
           r = Row.fromSeq(values)
 
-          return Array(r)
+          rowArray = Array(r)
 
         } else {
 //          log.info("type 1 fields don't match")
@@ -232,7 +234,7 @@ object SCDProcessor {
 
           new_r = Row.fromSeq(values)
 
-          return Array(new_r)
+          rowArray = Array(new_r)
 
         }
 
@@ -265,12 +267,12 @@ object SCDProcessor {
 
         new_r = Row.fromSeq(values)
 
-        return Array(r, new_r)
+        rowArray = Array(r, new_r)
 
       }
 
     }
-    return Array(r) //should never get here
+    return rowArray
   }
 
   def processFieldsWithSchema(f: String, joinedRow: Row) :String = {
@@ -296,9 +298,9 @@ object SCDProcessor {
     } else if (fieldType == "double") {
 //      log.info("Found DoubleType")
       retStr = row.getAs[Double](field).toString
-    } else if (fieldType == "decimal") {
+    } else if (fieldType.startsWith("decimal")) {
 //      log.info("Found DecimalType")
-      retStr = row.getAs[BigDecimal](field).toString
+      retStr = row.getAs[java.math.BigDecimal](field).toString
     }
 
 //    log.info("returning " + retStr)

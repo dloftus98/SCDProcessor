@@ -14,6 +14,7 @@ class MySuite extends FunSuite with BeforeAndAfterAll {
   @transient var sc: SparkContext = null
   @transient var hiveContext: HiveContext = null
   var dimDf: DataFrame = null;
+  var dimDfOut: DataFrame = null;
   var stageDf: DataFrame = null;
   var configStr: String = null;
 
@@ -54,20 +55,34 @@ class MySuite extends FunSuite with BeforeAndAfterAll {
     val stageRows = Seq(
       Row.fromSeq(List("100", "Dan", "Loftus", "Mount Laurel", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-12-26 00:00:00"))),
       Row.fromSeq(List("101", "Rob", "Goodman",  "Wilmington", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-12-26 00:00:00"))),
-      Row.fromSeq(List("102", "Roman", "Feldblum", "Marlton", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-12-26 00:00:00")))
+      Row.fromSeq(List("102", "Roman", "Feldblum", "Marlton", 2, BigDecimal.apply(50000.00), 125.00, Timestamp.valueOf("2014-12-26 00:00:00"))),
+      Row.fromSeq(List("104", "Manish", "Patel", "Edison", 2, BigDecimal.apply(50000.00), 125.00, Timestamp.valueOf("2014-12-26 00:00:00")))
     )
 
     val dimRows = Seq(
       Row.fromSeq(List(1, "100", "Dan", "Loftus", "Mount Laurel", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y")),
       Row.fromSeq(List(2, "101", "Rob", "Goodman", "Mount Laurel", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y")),
-      Row.fromSeq(List(3, "102", "Roman", "Feldblum", "Mount Laurel", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y"))
+      Row.fromSeq(List(3, "102", "Roman", "Feldblum", "Marlton", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y")),
+      Row.fromSeq(List(4, "103", "Bill", "Mattern", "Marlton", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y"))
     )
+
+    val dimRowsOut = Seq(
+      Row.fromSeq(List(1, "100", "Dan", "Loftus", "Mount Laurel", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y")),
+      Row.fromSeq(List(2, "101", "Rob", "Goodman", "Mount Laurel", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), Timestamp.valueOf("2014-12-26 00:00:00"), 1, "N")),
+      Row.fromSeq(List(5, "101", "Rob", "Goodman", "Wilmington", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-12-26 00:00:00"), null, 2, "Y")),
+      Row.fromSeq(List(3, "102", "Roman", "Feldblum", "Marlton", 2, BigDecimal.apply(50000.00), 125.00, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y")),
+      Row.fromSeq(List(4, "103", "Bill", "Mattern", "Marlton", 2, BigDecimal.apply(50000.00), 123.23, Timestamp.valueOf("2014-11-26 00:00:00"), null, 1, "Y")),
+      Row.fromSeq(List(6, "104", "Manish", "Patel", "Edison", 2, BigDecimal.apply(50000.00), 125.00, Timestamp.valueOf("2014-12-26 00:00:00"), null, 1, "Y"))
+    )
+
 
     val stageRdd = hiveContext.sparkContext.parallelize(stageRows)
     val dimRdd = hiveContext.sparkContext.parallelize(dimRows)
+    val dimRddOut = hiveContext.sparkContext.parallelize(dimRowsOut)
 
     stageDf = hiveContext.createDataFrame(stageRdd, stageSchema)
     dimDf = hiveContext.createDataFrame(dimRdd, dimSchema)
+    dimDfOut = hiveContext.createDataFrame(dimRddOut, dimSchema)
 
     hiveContext.sql("create database if not exists source_db location 'file:///tmp/source_db'")
     hiveContext.sql("create database if not exists target_db location 'file:///tmp/target_db'")
@@ -80,6 +95,7 @@ class MySuite extends FunSuite with BeforeAndAfterAll {
       .getLines()
       .mkString
 
+    SCDProcessor.run(hiveContext, configStr, "12/26/2014")
   }
 
   override def afterAll(): Unit = {
@@ -92,15 +108,19 @@ class MySuite extends FunSuite with BeforeAndAfterAll {
 //    sc.stop()
   }
 
-  test("Test table creation and summing of counts") {
+  test("comparing output dataframe with expected output") {
 
-    SCDProcessor.run(hiveContext, configStr, "12/26/2014")
+    val resultDf = hiveContext.sql("select * from target_db.output_table order by account_number, version")
+    println("Output DataFrame")
+    resultDf.show()
 
-    hiveContext.sql("select count(*) from target_db.output_table").show
+    println("Expected DataFrame")
+    dimDfOut.show()
 
-    val rows = hiveContext.sql("select count(*) from target_db.output_table").collect()(0).getLong(0)
+    val diffDf = dimDfOut.unionAll(resultDf).except(dimDfOut.intersect(resultDf))
+    println("Output unioned with expected output minus the output intersected with the expected output should be empty")
+    diffDf.show()
 
-    assert(rows == 6L, "The row count should be 6 but " + rows + " were found.")
-
+    assert(diffDf.rdd.isEmpty(), "The dataframes are different, see output above.")
   }
 }
